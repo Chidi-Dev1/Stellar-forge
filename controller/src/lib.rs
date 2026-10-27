@@ -22,24 +22,30 @@
 //! - [`apis`] — Custom resource validation and API schema utilities.
 //! - [`deployment`] — StellarNode deployment pipeline, including the
 //!   [`deployment::optimizer`] WASM bytecode optimizer.
+//! - [`pdb`] — PodDisruptionBudget auto-tuning controller that keeps
+//!   `maxUnavailable` at 0 while validators sync and only relaxes it to 1
+//!   when the quorum can survive losing one validator.
 //! - [`finalizers`] — Kubernetes finalizer cleanup recovery controller.
 //!   Detects `StellarNode` resources stuck in `Terminating` state, verifies
 //!   cloud storage detachment via AWS EBS / GCP PD APIs, and safely removes
 //!   orphaned finalizers without risking data loss.
 //! - [`quorum`] — Quorum-set graph analysis utilities.
-//! - [`snapshots`] — Ephemeral Kubernetes storage snapshot controller (issue #243):
-//!   VolumeSnapshot watcher, fsync coordination with Stellar Core, cloud-provider
-//!   API adapters (AWS EBS, GCP PD), and PVC auto-generation for rapid horizontal
-//!   scaling.
-//! - [`webhook`] — Admission webhook handlers, including the
+//! - [`tls`] — Self-signed TLS certificate generation for the admission webhook.
+//! - [`wasm`] — Wasmtime module cache (LRU, metrics, eviction).
+//! - [`webhook`] — Admission webhook handlers:
+//!   - [`webhook::wasm_mutator`] — MutatingAdmissionWebhook for WASM bytecode
+//!     optimisation.
+//!   - [`webhook::wasm_runner`] — Sandboxed Wasmtime policy execution engine.
+//!   - [`webhook::admission`] — Kubernetes AdmissionReview HTTP server with
+//!     fail-open/fail-closed routing.
 
 
-pub mod apis;
-pub mod crd;
 pub mod deployment;
-
+pub mod ingestion;
+pub mod pdb;
 pub mod quorum;
-pub mod testnet;
+pub mod tls;
+pub mod wasm;
 pub mod webhook;
 
 /// Standard test logger initialization macro helper.
