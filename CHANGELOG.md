@@ -5,6 +5,139 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 
+## Chart v2.35.0 (2026-10-27) [minor]
+
+• Merge pull request #452 from Akindoyin538/simple/290-318-320-321
+• Fix: 4 issues (#290, #318, #320, #321)
+• Merge branch 'main' into simple/290-318-320-321
+• Merge pull request #459 from Okorie2000-code/feat/automated-storage-snapshot-backup-84
+✨ feat(controller): automated storage snapshot & cloud backup controller
+• Merge branch 'main' into feat/automated-storage-snapshot-backup-84
+• Merge pull request #450 from Obetaebube3/feat/wasm-latency-autoscaling
+✨ feat(autoscaling): HPA driven by Soroban WASM execution p95 latency
+• Merge branch 'main' into feat/wasm-latency-autoscaling
+• Merge pull request #451 from Ukorstack/revert-1-fix/logging-namespace-field-rename-933
+• Revert 1 fix/logging namespace field rename 933
+• Merge pull request #477 from Ukorstack/feat/kafka-event-bridge-issue-292
+✨ feat(event-bridge): Kafka Event Streaming Bridge for Horizon (#292)
+• Merge pull request #512 from Okorie2000-code/feat/topology-spread-enforcer-116
+✨ feat(topology): dynamic node topology spread constraint enforcer (#116)
+• Merge branch 'main' into feat/kafka-event-bridge-issue-292
+• Merge branch 'main' into feat/kafka-event-bridge-issue-292
+• Merge branch 'main' into feat/topology-spread-enforcer-116
+• Merge branch 'main' into feat/automated-storage-snapshot-backup-84
+✨ feat(topology): add dynamic topology spread constraint enforcer (#116)
+• Implements a mutating controller that inspects cluster node availability-zone
+• labels and injects topologySpreadConstraints and podAntiAffinity rules into
+• Stellar-node StatefulSet manifests.
+• Key modules:
+• - controller/src/topology/rules.rs  — ClusterTopology, rule types, and
+•   build_rule_set() with a two-gate capacity check
+• - controller/src/topology/enforcer.rs — NodeZoneSource trait, zone discovery,
+•   enforce_statefulset_manifest(), build_statefulset_patch(), and
+•   StaticNodeZoneSource for testing/dev use
+• - controller/src/topology/mod.rs    — public re-exports
+• Behaviour:
+• - Hard DoNotSchedule zone + host spread when ≥3 zones AND schedulable node
+•   count >= replica count (prevents clustering on single physical hosts)
+• - Automatic fallback to soft ScheduleAnyway rules on single-zone local
+•   development clusters or when capacity is insufficient
+• - Idempotent: re-running enforcement against an already-patched manifest is
+•   a no-op
+• - Annotations record active mode, zone count, and node count for observability
+• Tests (50 passing):
+• - Multi-zone hard-rules path and all field values / K8s wire names
+• - Single-zone soft-rules fallback
+• - Capacity gate downgrade (3 zones, insufficient node count → soft)
+• - Dry-run does not mutate the manifest
+• - Idempotency (second enforcement run is a no-op)
+• - Greedy scheduler simulation verifying even pod distribution across a
+•   3-zone cluster (PR review requirement)
+• Closes #116
+✨ feat(event-bridge): Kafka event streaming bridge for Horizon (#292)
+• Add the stellar-event-bridge workspace crate: a Rust worker that taps
+• Horizon's ingestion ledger resources and streams ledger closes, token
+• transfers, and Soroban contract events into Kafka with exactly-once
+• semantics (Kafka transactions: events + checkpoint commit atomically,
+• zombie fencing via transactional.id, resume from committed checkpoint).
+• Events are partitioned by asset or contract ID per ADR-0005 and carry
+• deterministic SHA-256 event IDs plus base64 XDR passthrough for fidelity
+• verification. Ships worker binary (run/backfill/export/load-test),
+• unit + wiremock e2e tests, 5,000 events/sec load tests, Redpanda
+• validation script, Avro schema, sample manifest, and docs.
+• 🤖 Generated with Codebuff
+• Co-Authored-By: Codebuff <noreply@codebuff.com>
+✨ feat(controller): automated storage snapshot & cloud backup controller
+• Implement issue #84: an automated persistent-volume snapshot lifecycle
+• across AWS EBS, GCP PD, and local storage providers, driven by a
+• provider-agnostic controller loop in the lean `controller` crate.
+• New module `controller/src/backup/`:
+• - cloud.rs: `SnapshotProvider` trait abstracting the three back-ends,
+•   plus `SnapshotDescriptor` (with ledger-sequence marker, created_at,
+•   state, checksum, tags). Includes a fully functional
+•   `LocalSnapshotProvider` (recursive copy + manifest + SHA-256 tree
+•   hashing) used as the reference implementation, an `AwsEbsProvider`
+•   (EC2 Query API with hand-rolled AWS SigV4 request signing), and a
+•   `GcpPdProvider` (Compute Engine REST with bearer-token auth).
+• - snapshot.rs: `SnapshotController` implementing the scoped behaviours:
+•   * Ledger-marker aligned triggering (`should_snapshot` fires only when
+•     the ledger crosses the configured marker interval).
+•   * Age- and count-based retention enforcement (`RetentionPolicy`,
+•     `enforce_retention`), complementing the operator's existing
+•     count-only pruning.
+•   * Crash consistency via a `FlushCoordinator` that briefly pauses
+•     database write flushes (drains in-flight, blocks new) around
+•     snapshot capture.
+•   * Rapid restoration with integrity validation
+•     (`restore_from_snapshot` refuses non-Available snapshots and
+•     surfaces the provider's integrity-check result).
+• Wired `pub mod backup` into `controller/src/lib.rs` and added the
+• required deps (async-trait, chrono/serde, sha2, hex, hmac) plus a
+• pinned wiremock dev-dependency for offline HTTP round-trip tests.
+• Fix a latent compile bug in `webhook/wasm_mutator.rs`: the
+• `#[instrument(skip(...))]` attribute referenced a non-existent `body`
+• parameter (the real params are `state` and `review`). The controller
+• crate ships without a Cargo.lock, so the dependency resolution pulled a
+• stricter `tracing-attributes` that rejects the invalid skip.
+• Testing: 76 unit/integration tests pass. Covers ledger alignment,
+• age+count retention, flush-pause block/drain semantics, local provider
+• snapshot->restore->integrity round-trips and corruption detection, AWS
+• SigV4 (including the published test vector), and wiremock HTTP
+• round-trips for the AWS EBS and GCP PD providers (create/describe/list/
+• delete/restore), which caught and fixed a GCP `sizeGb` parsing bug
+• (numeric JSON field read as string).
+• Closes #84
+• 🤖 Generated with Codebuff
+• Co-Authored-By: Codebuff <noreply@codebuff.com>
+• simple: batch fix 4 issues
+• Co-authored-by: Simple Agent <agent@simple.dev>
+• Revert "fix(logging): rename k8s_namespace field to namespace (#933)"
+• Merge pull request #1 from Ukorstack/fix/logging-namespace-field-rename-933
+🐛 fix(logging): rename k8s_namespace field to namespace (#67
+🐛 fix(logging): rename k8s_namespace field to namespace (#933)
+• The StructuredLog struct was serialising the Kubernetes namespace as
+• 'k8s_namespace', which caused mismatches in log-aggregation dashboards
+• and alert rules that expected the canonical 'namespace' key.
+• Changes:
+• - src/logging/mod.rs: rename StructuredLog::k8s_namespace -> namespace;
+•   update build_structured_log() and all unit tests accordingly; add
+•   assertion that the old 'k8s_namespace' key is absent from serialised JSON
+• - docs/structured-logging.md: update field table, add field-name contract
+•   note (issue #933), document canonical field-name constants, add JSON
+•   logging test section
+• - tests/json_logging_test.rs: assert 'namespace' present and 'k8s_namespace'
+•   absent in span-field JSON output
+• - tests/common/mod.rs: add ConfigMapGuard and SecretGuard RAII helpers to
+•   prevent resource leaks in integration tests (issue #934)
+• - tests/pdb_integration_test.rs: rewrite to fix compilation errors (typos,
+•   invalid syntax) and convert cluster tests to use NamespaceGuard +
+•   StellarNodeGuard for proper cleanup; non-cluster logic tests extracted
+•   as always-run unit tests
+• - tests/secret_rotation_test.rs: remove incomplete test_password_generation
+•   stub that was missing its function body
+✨ feat(autoscaling): HPA driven by Soroban WASM execution p95 latency
+
+
 ## Chart v2.34.0 (2026-10-27) [minor]
 
 • Merge pull request #445 from olarh0170-netizen/feat/wasm-admission-webhook-303
