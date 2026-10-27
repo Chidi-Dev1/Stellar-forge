@@ -32,6 +32,5 @@
 //! - [`quorum`] — Quorum-set graph analysis utilities.
 
 pub mod deployment;
-pub mod ingestion;
-pub mod pdb;
+
 pub mod quorum;
